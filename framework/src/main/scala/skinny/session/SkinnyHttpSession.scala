@@ -43,14 +43,18 @@ object SkinnyHttpSession extends LoggerProvider {
     val jsessionIdCookieName: String = request.getServletContext.getSessionCookieConfig.getName
     val jsessionIdInCookie: Option[String] =
       Option(request.getCookies).flatMap(_.find(_.getName == jsessionIdCookieName).map(_.getValue))
+    val jsessionIdInCookieIdPart: Option[String] =
+      jsessionIdInCookie.map(jsessionIdMayHaveWorkerName => jsessionIdMayHaveWorkerName.split('.').head)
     val jsessionIdInSession: Option[String] = Option(request.getSession).map(_.getId)
-    logger.debug(s"[Skinny Session] session id (cookie: ${jsessionIdInCookie}, local session: ${jsessionIdInSession})")
+    logger.debug(
+      s"[Skinny Session] session id (cookie: ${jsessionIdInCookie}(id: ${jsessionIdInCookieIdPart}), local session: ${jsessionIdInSession})"
+    )
 
     val expireAt: DateTime =
       jdbc.SkinnySession.getExpireAtFromMaxInactiveInterval(request.getSession.getMaxInactiveInterval)
     val jdbcSession: jdbc.SkinnySession = {
-      if (jsessionIdInCookie.isDefined && jsessionIdInCookie.get != jsessionIdInSession) {
-        jdbc.SkinnySession.findOrCreate(jsessionIdInCookie.get, jsessionIdInSession, expireAt)
+      if (jsessionIdInCookieIdPart.isDefined && jsessionIdInCookieIdPart.get != jsessionIdInSession) {
+        jdbc.SkinnySession.findOrCreate(jsessionIdInCookieIdPart.get, jsessionIdInSession, expireAt)
       } else {
         jdbc.SkinnySession.findOrCreate(jsessionIdInSession.orNull[String], None, expireAt)
       }

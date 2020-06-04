@@ -32,11 +32,15 @@ class SkinnySessionInitializer extends Filter with LoggerProvider {
     val session              = req.getSession(true)
     val jsessionIdCookieName = req.getServletContext.getSessionCookieConfig.getName
     val jsessionIdInCookie   = Option(req.getCookies).flatMap(_.find(_.getName == jsessionIdCookieName).map(_.getValue))
-    val jsessionIdInSession  = session.getId
-    logger.debug(s"[Skinny Session] session id (cookie: ${jsessionIdInCookie}, local session: ${jsessionIdInSession})")
+    val jsessionIdInCookieIdPart =
+      jsessionIdInCookie.map(jsessionIdMayHaveWorkerName => jsessionIdMayHaveWorkerName.split('.').head)
+    val jsessionIdInSession = session.getId
+    logger.debug(
+      s"[Skinny Session] session id (cookie: ${jsessionIdInCookie}(id: ${jsessionIdInCookieIdPart}), local session: ${jsessionIdInSession})"
+    )
     val expireAt = SkinnySession.getExpireAtFromMaxInactiveInterval(session.getMaxInactiveInterval)
-    val skinnySession = if (jsessionIdInCookie.isDefined && jsessionIdInCookie.get != jsessionIdInSession) {
-      SkinnySession.findOrCreate(jsessionIdInCookie.get, Option(jsessionIdInSession), expireAt)
+    val skinnySession = if (jsessionIdInCookieIdPart.isDefined && jsessionIdInCookieIdPart.get != jsessionIdInSession) {
+      SkinnySession.findOrCreate(jsessionIdInCookieIdPart.get, Option(jsessionIdInSession), expireAt)
     } else {
       SkinnySession.findOrCreate(jsessionIdInSession, None, expireAt)
     }
